@@ -112,7 +112,23 @@ CREATE TABLE transactions (
 Realitza una subconsulta que mostri tots els usuaris amb més de 30 transaccions utilitzant almenys 2 taules. */
 
 SELECT users.id AS Usuario_a,
-CONCAT(users.name," ", surname) AS Nombre,
+CONCAT(users.name, ' ', users.surname) AS Nombre,
+(SELECT COUNT(*)
+ FROM transactions
+ WHERE transactions.users_id = users.id) AS Transacciones
+FROM users
+WHERE users.id IN (
+    SELECT users_id
+    FROM transactions
+    GROUP BY users_id
+    HAVING COUNT(id) > 30
+)
+ORDER BY Transacciones DESC;
+
+# OPCIÓN SIN SUBCONSULTA Y USANDO JOIN
+
+SELECT users.id AS Usuario_a,
+CONCAT(users.name," ", users.surname) AS Nombre,
 COUNT(transactions.id) AS Transacciones
 FROM transactions
 JOIN users ON transactions.users_id = users.id
@@ -120,6 +136,7 @@ GROUP BY usuario_a
 HAVING COUNT(transactions.id) > 30
 ORDER BY transacciones DESC
 ;
+
  
 /* - Exercici 2
 Mostra la mitjana de la suma de transaccions per IBAN de les targetes de crèdit en la companyia Donec Ltd. utilitzant almenys 2 taules.*/
@@ -131,8 +148,6 @@ JOIN credit_card ON transactions.credit_card_id = credit_card.id
 WHERE company_name = "Donec Ltd"
 GROUP BY credit_card.iban;
 
-SELECT * FROM credit_card
-;
 
 /*Nivell 2
 Crea una nova taula que reflecteixi l'estat de les targetes de crèdit basat en si les últimes tres 
@@ -141,8 +156,9 @@ transaccions van ser declinades i genera la següent consulta:
 Exercici 1
 Quantes targetes estan actives?*/
 
-/*PRIMER PASO: Creo una consulta que me permita ordenar por una parte los credit_card_id y sus operaciones de más reciente a antigua por timestamp
-utilizando la función de ventana row_number, diviendo en particiones por el credit_card_id y ordenándolos por timestamp de manera descendente*/
+/*PRIMER PASO: Creo una consulta de prueba que me permita ordenar por una parte los credit_card_id y sus operaciones de más reciente a antigua por timestamp
+utilizando la función de ventana row_number, diviendo en particiones por el credit_card_id, ordenándolos por timestamp de manera descendente y con esto poder
+realizar el siguiente paso*/
 
 select credit_card_id, timestamp, declined,
 row_number() over (partition by credit_card_id order by timestamp DESC) as operacion
@@ -156,7 +172,7 @@ el credit_card_id y se cuentan el número de transacciones declinadas teniendo e
 Posteriormente se realiza una consulta tomando los resultados de ConteoDeclinadas y con otra declaración CASE se determina el estado de la tarjeta, considerando
 que si la suma es 3 el estado será "Tarjeta Inactiva", de lo contrario "Tarjeta Activa"  */
 
-/*CREATE TABLE tarjetas_activas*/
+CREATE TABLE tarjetas_activas
 WITH Operaciones AS (
     SELECT credit_card_id, declined,
     ROW_NUMBER() OVER (PARTITION BY credit_card_id ORDER BY timestamp DESC) as operacion
